@@ -1,0 +1,7 @@
+{
+  "name": "@plinth/example-ts-browser",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "@plinth/sdk": "workspace:*" }
+}

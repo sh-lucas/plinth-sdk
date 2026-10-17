@@ -1,0 +1,8 @@
+build/
+*.class
+dist/
+.e2e/
+.e2e.env
+.gen/
+.gradle/
+node_modules/
