@@ -193,4 +193,5 @@ export interface GrantAccess {
   unscoped_bucket_inputs?: boolean;
   propose?: boolean;
 }
-export type Access = { admin: true } | GrantAccess;
+/** `{propose: true}` alone is the proposer level: reads everything, previews and proposes, never writes. */
+export type Access = { admin: true } | { propose: true } | GrantAccess;

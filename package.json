@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm -C ts build && pnpm -C mcp build",
+    "build": "pnpm -C ts build",
     "test": "pnpm -r test"
   },
   "devDependencies": {

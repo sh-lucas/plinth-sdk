@@ -1,4 +1,3 @@
 packages:
   - ts
-  - mcp
   - examples/*

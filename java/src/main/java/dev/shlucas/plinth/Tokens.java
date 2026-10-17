@@ -38,7 +38,7 @@ public final class Tokens {
     }
 
     /**
-     * Sign an EdDSA JWT. {@code access} is {@code {"admin": true}} or
+     * Sign an EdDSA JWT. {@code access} is {@code {"admin": true}}, {@code {"propose": true}} (proposer) or
      * {@code {"templates": [...], "domains": [...], "backdating"?, "unscoped_bucket_inputs"?, "propose"?}}.
      */
     public static String signGrantToken(PrivateKey privateKey, String kid, String tenant, String issuer,

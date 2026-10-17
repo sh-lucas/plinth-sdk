@@ -1,6 +1,6 @@
 # Contract
 
-Shared behaviour of every Plinth SDK in this repository (TypeScript, Java) and of the MCP server. When a language SDK and this file disagree, this file wins; fix the SDK or update this file in the same change.
+Shared behaviour of every Plinth SDK in this repository (TypeScript, Java). When a language SDK and this file disagree, this file wins; fix the SDK or update this file in the same change.
 
 ## Principles
 
@@ -63,7 +63,7 @@ Every non-2xx response becomes a `PlinthError` with `status`, `code`, `message` 
 
 ## Tokens (server side only)
 
-`signGrantToken({privateKey, kid, tenant, issuer, subject, ttlSeconds, access})` signs an EdDSA (Ed25519) JWT in the shape of `specs/authorization.md` of the server: claims `iss`, `sub`, `iat`, `exp`, `plinth: {tenant, access}`; header `{alg: "EdDSA", typ: "JWT", kid}`. `access` is `{admin: true}` or `{templates, domains, backdating?, unscoped_bucket_inputs?, propose?}`. Also `generateSigningKey()` → `{privateKey, publicKeyBase64}` where `publicKeyBase64` is the raw 32-byte key in standard base64, as `PUT /v1/auth/signing-key` expects.
+`signGrantToken({privateKey, kid, tenant, issuer, subject, ttlSeconds, access})` signs an EdDSA (Ed25519) JWT in the shape of `specs/authorization.md` of the server: claims `iss`, `sub`, `iat`, `exp`, `plinth: {tenant, access}`; header `{alg: "EdDSA", typ: "JWT", kid}`. `access` is `{admin: true}`, `{propose: true}` (proposer: reads everything, previews and proposes, never writes) or `{templates, domains, backdating?, unscoped_bucket_inputs?, propose?}`. Also `generateSigningKey()` → `{privateKey, publicKeyBase64}` where `publicKeyBase64` is the raw 32-byte key in standard base64, as `PUT /v1/auth/signing-key` expects.
 
 ## Proposals API (server)
 
