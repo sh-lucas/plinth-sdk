@@ -90,7 +90,7 @@ Request body of `POST /v1/proposals`:
 }
 ```
 
-`domains` items have the body of `POST /v1/domains`; `templates` items have the body of `POST /v1/templates`. At least one item in total. A template may target a domain created by the same proposal.
+`domains` items have the body of `POST /v1/domains`; `templates` items have the body of `POST /v1/templates`. At least one item in total. A template may target a domain created by the same proposal. Limits: at most 32 domains and 32 templates, a `title` of up to 200 characters and a `memo` of up to 4000; more answers `400`.
 
 Response (`Proposal`):
 

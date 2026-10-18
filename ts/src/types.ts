@@ -155,6 +155,8 @@ export interface TransactionReplay {
   steps: ReplayStep[];
   provisions: Preview["provisions"];
   matches: boolean;
+  /** The error that stopped the replay early, shaped like the execution's error envelope. */
+  divergence?: { code: string; message: string; rejection?: string; node?: string; operation?: number } | null;
 }
 
 export interface TransactionFilters extends PageOptions {

@@ -228,7 +228,7 @@ export class PlinthClient {
     listAll: (f: TransactionFilters = {}) => this.all((page) => this.transactions.list({ ...f, page })),
     get: (id: string) => this.get<Transaction>(`/transactions/${enc(id)}`),
     byIdempotencyKey: (key: string) => this.get<Transaction>(`/transactions/idempotency/${enc(key)}`),
-    /** Admin. Re-run the template against the ledger as it was. Writes nothing. */
+    /** Admin or proposer level. Re-run the template against the ledger as it was. Writes nothing. */
     replay: (id: string) => this.get<TransactionReplay>(`/transactions/${enc(id)}/replay`),
     /** Admin. Direct correction; bypasses template guards. */
     patch: (id: string, o: PatchOptions) =>
