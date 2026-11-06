@@ -51,6 +51,11 @@ describe.skipIf(!hasServer)("sdk against a server", () => {
     const q = await client.balances.query([{ bucket: alice }]);
     expect(q.items[0]!.balance).toBe(70);
     expect(q.consolidated).toEqual([{ unit: "point", balance: 70 }]);
+    const scoped = await client.balances.query([
+      { domain: m.domain, prefix: alice },
+      { domain: m.domain, filter: { key: "missing", operator: "gt", value: 0 } },
+    ]);
+    expect(scoped.items.map((i) => i.balance)).toEqual([70, 0]);
   });
 
   it("validates inputs locally and caches the template", async () => {
@@ -74,6 +79,8 @@ describe.skipIf(!hasServer)("sdk against a server", () => {
     const byKey = await client.transactions.byIdempotencyKey(idempotencyKey("sdk", fx.runid, "credit"));
     expect((await client.transactions.get(byKey.id)).id).toBe(byKey.id);
     expect((await client.transactions.replay(byKey.id)).matches).toBe(true);
+    const patched = await client.transactions.patch(byKey.id, { memo: "note only", postings: [], idempotencyKey: idempotencyKey("sdk", fx.runid, "patch") });
+    expect(patched.patched).toBe(byKey.id);
 
     expect(await client.templates.diagram(m.redeem)).toContain("flowchart");
     expect((await client.templates.get(m.redeem)).nodes.length).toBeGreaterThan(3);
@@ -139,6 +146,28 @@ describe.skipIf(!hasServer || !isLocal)("proposals (needs a local server with /v
     await fx.admin.verify([fx.id("prop-credit")]);
     const again = await fx.admin.proposals.approve(p.id).catch((e) => e);
     expect(again).toMatchObject({ status: 409 });
+
+    const claimed = {
+      templates: [{
+        id: fx.id("prop-bonus"), domain, name: "Bonus",
+        nodes: [
+          { id: "account", op: "bucket" },
+          { id: "amount", op: "claim", key: "bonus", value_type: "integer" },
+          { id: "move", op: "post", bucket: "account", amount: "amount", direction: "in" },
+        ],
+      }],
+    };
+    await fx.admin.buckets.create(domain, { id: fx.id("prop-alice") });
+    const preview = await fx.admin.proposals.preview({
+      ...claimed,
+      operations: [
+        { template: fx.id("prop-bonus"), context: { bucket: fx.id("prop-alice") }, claims: { bonus: 9 } },
+        { template: fx.id("prop-bonus"), context: { bucket: fx.id("prop-alice") } },
+      ],
+    });
+    expect(preview.operations[0]!.postings).toEqual([{ bucket: fx.id("prop-alice"), amount: 9 }]);
+    expect(preview.operations[1]!.error?.code).toBeTruthy();
+    await expect(fx.admin.templates.get(fx.id("prop-bonus"))).rejects.toMatchObject({ status: 404 });
 
     const r = await fx.admin.proposals.create({ title: "Nope", domains: [{ id: fx.id("prop-other"), kind: "group", parent: fx.org }] });
     expect((await fx.admin.proposals.reject(r.id, { memo: "no" })).status).toBe("rejected");

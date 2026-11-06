@@ -27,12 +27,12 @@ Names are the TypeScript ones; Java uses the same names in its own idiom.
 - `execute(template, {context?, inputs?, effectiveAt?, metadata?, memo?, idempotencyKey})` → `Transaction`. `idempotencyKey` is required. Body fields map to the REST body (`effective_at`, etc.).
 - `preview(template, {context?, inputs?, effectiveAt?, metadata?})` → `Preview` (`{postings, provisions}`, as the server answers).
 - `batch(operations, {idempotencyKey})` and `batchPreview(operations)`.
-- `balances.bucket(id, {since?, until?})`, `balances.domain(id, ...)`, `balances.query(targets, {since?, until?})`.
-- `transactions.list(filters)`, `transactions.get(id)`, `transactions.byIdempotencyKey(key)`.
+- `balances.bucket(id, {since?, until?})`, `balances.domain(id, ...)`, `balances.query(targets, {since?, until?})`. A domain target takes an optional `prefix` and `filter` (`{key, operator, value}` on an integer attribute).
+- `transactions.list(filters)`, `transactions.get(id)`, `transactions.byIdempotencyKey(key, {scope?})` (`scope`: admin only, `jwt:{iss}`).
 - `templates.list()`, `templates.get(id)`, `templates.diagram(id)`.
 - `domains.list/get/children/subtree/buckets`, `buckets.get/postings`.
 - Admin: `domains.create`, `buckets.create`, `templates.publish`, `templates.setDisabled`.
-- Proposals: `proposals.create(body)`, `proposals.validate(body)` (dry run), `proposals.list({status?})`, `proposals.get(id)`, `proposals.approve(id, {memo?})`, `proposals.reject(id, {memo?})`.
+- Proposals: `proposals.create(body)`, `proposals.validate(body)` (dry run), `proposals.list({status?})`, `proposals.get(id)`, `proposals.approve(id, {memo?})`, `proposals.reject(id, {memo?})`, `proposals.preview({domains?, templates?, operations})` (each operation as in `batch`, plus optional `claims`; rolled back).
 - `verify(templateIds)`: fetch each template and fail with one error that lists every missing or disabled template. Call it at boot.
 
 Paginated listings return `{items, pagination: {page, per_page, total, has_next, has_previous}}`; the SDKs expose that page and an async iterator (TS) / `Stream` or iterator (Java) over all pages.
@@ -63,7 +63,7 @@ Every non-2xx response becomes a `PlinthError` with `status`, `code`, `message` 
 
 ## Tokens (server side only)
 
-`signGrantToken({privateKey, kid, tenant, issuer, subject, ttlSeconds, access})` signs an EdDSA (Ed25519) JWT in the shape of `specs/authorization.md` of the server: claims `iss`, `sub`, `iat`, `exp`, `plinth: {tenant, access}`; header `{alg: "EdDSA", typ: "JWT", kid}`. `access` is `{admin: true}`, `{propose: true}` (proposer: reads everything, previews and proposes, never writes) or `{templates, domains, backdating?, unscoped_bucket_inputs?, propose?}`. Also `generateSigningKey()` → `{privateKey, publicKeyBase64}` where `publicKeyBase64` is the raw 32-byte key in standard base64, as `PUT /v1/auth/signing-key` expects.
+`signGrantToken({privateKey, kid, tenant, issuer, subject, ttlSeconds, access, claims?})` signs an EdDSA (Ed25519) JWT in the shape of `specs/authorization.md` of the server: claims `iss`, `sub`, `iat`, `exp`, `plinth: {tenant, access, claims?}`; `claims` is the optional `plinth.claims` read by the `claim` node; header `{alg: "EdDSA", typ: "JWT", kid}`. `access` is `{admin: true}`, `{propose: true}` (proposer: reads everything, previews and proposes, never writes) or `{templates, domains, backdating?, unscoped_bucket_inputs?, propose?}`. Also `generateSigningKey()` → `{privateKey, publicKeyBase64}` where `publicKeyBase64` is the raw 32-byte key in standard base64, as `PUT /v1/auth/signing-key` expects.
 
 ## Proposals API (server)
 

@@ -43,6 +43,12 @@ public final class Tokens {
      */
     public static String signGrantToken(PrivateKey privateKey, String kid, String tenant, String issuer,
             String subject, long ttlSeconds, Map<String, Object> access) {
+        return signGrantToken(privateKey, kid, tenant, issuer, subject, ttlSeconds, access, null);
+    }
+
+    /** Same, with {@code plinth.claims} (at most 8 keys, integers or id-grammar strings) read by the claim node. */
+    public static String signGrantToken(PrivateKey privateKey, String kid, String tenant, String issuer,
+            String subject, long ttlSeconds, Map<String, Object> access, Map<String, Object> plinthClaims) {
         try {
             long iat = Instant.now().getEpochSecond();
             Map<String, Object> header = new LinkedHashMap<>();
@@ -54,7 +60,11 @@ public final class Tokens {
             claims.put("sub", subject);
             claims.put("iat", iat);
             claims.put("exp", iat + ttlSeconds);
-            claims.put("plinth", Map.of("tenant", tenant, "access", access));
+            Map<String, Object> plinth = new LinkedHashMap<>();
+            plinth.put("tenant", tenant);
+            plinth.put("access", access);
+            if (plinthClaims != null) plinth.put("claims", plinthClaims);
+            claims.put("plinth", plinth);
             String signingInput = b64(MAPPER.writeValueAsBytes(header)) + "." + b64(MAPPER.writeValueAsBytes(claims));
             Signature sig = Signature.getInstance("Ed25519");
             sig.initSign(privateKey);

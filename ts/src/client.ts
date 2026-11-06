@@ -1,8 +1,8 @@
 import { PlinthError, PlinthVerifyError } from "./errors.js";
 import type {
-  BalanceQueryResult, BalanceTarget, BatchPreview, Bucket, BucketBalance, BucketInput, BucketPosting, Context,
+  BalanceQueryResult, BalanceTarget, Claims, BatchPreview, Bucket, BucketBalance, BucketInput, BucketPosting, Context,
   DateRange, Domain, DomainBalance, DomainInput, DomainSubtreeItem, Json, Metadata, Page, PageOptions,
-  Preview, Proposal, ProposalInput, ProposalStatus, Template, TemplateInput, Transaction, TransactionFilters,
+  Preview, Proposal, ProposalInput, ProposalPreview, ProposalStatus, Template, TemplateInput, Transaction, TransactionFilters,
   TransactionReplay,
 } from "./types.js";
 import { validateInputs } from "./validate.js";
@@ -227,12 +227,14 @@ export class PlinthClient {
     list: ({ perPage, ...f }: TransactionFilters = {}) => this.get<Page<Transaction>>("/transactions", { ...f, per_page: perPage }),
     listAll: (f: TransactionFilters = {}) => this.all((page) => this.transactions.list({ ...f, page })),
     get: (id: string) => this.get<Transaction>(`/transactions/${enc(id)}`),
-    byIdempotencyKey: (key: string) => this.get<Transaction>(`/transactions/idempotency/${enc(key)}`),
+    /** `scope` (admin only): `jwt:{iss}` reads a token issuer's key; omitted, the caller's own scope. */
+    byIdempotencyKey: (key: string, o: { scope?: string } = {}) =>
+      this.get<Transaction>(`/transactions/idempotency/${enc(key)}`, { scope: o.scope }),
     /** Admin or proposer level. Re-run the template against the ledger as it was. Writes nothing. */
     replay: (id: string) => this.get<TransactionReplay>(`/transactions/${enc(id)}/replay`),
     /** Admin. Direct correction; bypasses template guards. */
     patch: (id: string, o: PatchOptions) =>
-      this.send<Transaction>("POST", `/transactions/${enc(id)}/patch`, {
+      this.send<Transaction>("POST", `/transactions/${enc(id)}/patches`, {
         body: {
           memo: o.memo,
           postings: o.postings,
@@ -291,6 +293,12 @@ export class PlinthClient {
     list: (f: PageOptions & { status?: ProposalStatus } = {}) =>
       this.get<Page<Proposal>>("/proposals", { status: f.status, page: f.page, per_page: f.perPage }),
     listAll: (f: { status?: ProposalStatus } = {}) => this.all((page) => this.proposals.list({ ...f, page })),
+    /** Admin or proposer level. Apply the draft, run the operations with simulated `claims`, roll everything back. */
+    preview: (p: Omit<ProposalInput, "title" | "memo"> & { operations: (PreviewOptions & { template: string; claims?: Claims })[] }) =>
+      this.send<ProposalPreview>("POST", "/proposals/preview", {
+        body: { ...p, operations: p.operations.map((o) => ({ ...wireOp(o), ...(o.claims && { claims: o.claims }) })) },
+        retry: true,
+      }),
     get: (id: string) => this.get<Proposal>(`/proposals/${enc(id)}`),
     approve: (id: string, o: { memo?: string } = {}) => this.send<Proposal>("POST", `/proposals/${enc(id)}/approve`, { query: { memo: o.memo } }),
     reject: (id: string, o: { memo?: string } = {}) => this.send<Proposal>("POST", `/proposals/${enc(id)}/reject`, { query: { memo: o.memo } }),

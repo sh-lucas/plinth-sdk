@@ -39,6 +39,16 @@ public final class Models {
 
     public record BatchPreview(List<BatchPreviewOperation> operations) {}
 
+    /** An operation of a proposal preview. {@code error} is the error body when it failed; its postings are then empty. */
+    public record ProposalPreviewOperation(
+            int index,
+            String template,
+            List<PreviewPosting> postings,
+            List<PreviewProvision> provisions,
+            Map<String, Object> error) {}
+
+    public record ProposalPreview(List<ProposalPreviewOperation> operations) {}
+
     public record Template(
             String id,
             String domain,
@@ -85,17 +95,32 @@ public final class Models {
 
     public record BalanceQueryResult(List<BalanceItem> items, List<ConsolidatedBalance> consolidated) {}
 
-    /** One target of a balance query: set exactly one of bucket or domain. */
+    /**
+     * One target of a balance query: set exactly one of bucket or domain. On a domain, {@code prefix} keeps the
+     * bucket named prefix and those named prefix:..., and {@code filter} keeps buckets whose integer attribute
+     * passes; at most 256 buckets either way.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record BalanceTarget(String bucket, String domain) {
+    public record BalanceTarget(String bucket, String domain, String prefix, BalanceFilter filter) {
         public static BalanceTarget bucket(String id) {
-            return new BalanceTarget(id, null);
+            return new BalanceTarget(id, null, null, null);
         }
 
         public static BalanceTarget domain(String id) {
-            return new BalanceTarget(null, id);
+            return new BalanceTarget(null, id, null, null);
+        }
+
+        public BalanceTarget withPrefix(String prefix) {
+            return new BalanceTarget(bucket, domain, prefix, filter);
+        }
+
+        /** {@code operator}: eq, ne, lt, lte, gt or gte. */
+        public BalanceTarget withFilter(String key, String operator, long value) {
+            return new BalanceTarget(bucket, domain, prefix, new BalanceFilter(key, operator, value));
         }
     }
+
+    public record BalanceFilter(String key, String operator, long value) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record NewDomain(

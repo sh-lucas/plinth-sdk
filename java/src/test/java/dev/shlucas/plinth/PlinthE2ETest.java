@@ -55,6 +55,11 @@ class PlinthE2ETest {
         assertEquals(100, admin.balances().bucket(bob).balance());
         BalanceQueryResult q = admin.balances().query(List.of(BalanceTarget.bucket(bob)));
         assertEquals(100, q.items().get(0).balance());
+        BalanceQueryResult scoped = admin.balances().query(List.of(
+                BalanceTarget.domain(domain).withPrefix(bob),
+                BalanceTarget.domain(domain).withFilter("missing", "gt", 0)));
+        assertEquals(List.of(100L, 0L), scoped.items().stream().map(BalanceItem::balance).toList());
+        assertEquals(tx.id(), admin.transactions().byIdempotencyKey(tx.idempotencyKey(), null).id());
         assertEquals(tx.id(), admin.transactions().byIdempotencyKey(tx.idempotencyKey()).id());
 
         Preview p = admin.preview(redeem, ExecuteRequest.previewBuilder().contextBucket(bob).inputs(Map.of("amount", 5)).build());
@@ -132,7 +137,7 @@ class PlinthE2ETest {
         assertEquals(200, put.statusCode(), put.body());
         try {
             String jwt = Tokens.signGrantToken(key.privateKey(), kid, "sdk", "e2e", "svc-" + e2e.runId, 300,
-                    Map.of("templates", List.of(credit), "domains", List.of(e2e.child)));
+                    Map.of("templates", List.of(credit), "domains", List.of(e2e.child)), Map.of("tier", "gold", "limit", 5));
             Plinth granted = Plinth.builder().baseUrl(E2E.URL).token(jwt).build();
             Transaction tx = granted.execute(credit, req(IdempotencyKeys.of("t", e2e.runId, "jwt"), Map.of("amount", 3)));
             assertTrue(tx.actor().startsWith("jwt:"));
@@ -161,6 +166,21 @@ class PlinthE2ETest {
                 List.of(new NewTemplate(t, d, t, null, nodes)));
 
         assertTrue(admin.proposals().validate(body).valid());
+
+        String bonus = e2e.id("prop-bonus");
+        List<Map<String, Object>> claimNodes = List.of(
+                Map.of("id", "account", "op", "bucket"),
+                Map.of("id", "amount", "op", "claim", "key", "bonus", "value_type", "integer"),
+                Map.of("id", "p", "op", "post", "bucket", "account", "amount", "amount", "direction", "in"));
+        Map<String, Object> context = Map.of("bucket", bucket);
+        ProposalPreview preview = admin.proposals().preview(Map.of(
+                "templates", List.of(new NewTemplate(bonus, domain, "bonus", null, claimNodes)),
+                "operations", List.of(
+                        Map.of("template", bonus, "context", context, "inputs", Map.of(), "claims", Map.of("bonus", 9)),
+                        Map.of("template", bonus, "context", context, "inputs", Map.of()))));
+        assertEquals(9, preview.operations().get(0).postings().get(0).amount());
+        assertNotNull(preview.operations().get(1).error());
+        assertTrue(assertThrows(PlinthException.class, () -> admin.templates().get(bonus)).isNotFound());
         assertTrue(admin.proposals().list(Map.of("status", "pending")).items().stream().noneMatch(p -> p.title().equals(body.title())));
 
         Proposal created = admin.proposals().create(body);

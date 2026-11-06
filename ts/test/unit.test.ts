@@ -46,6 +46,11 @@ describe("tokens", () => {
     expect(dec(c)).toEqual({ iss: "iss", sub: "sub", iat: 1000, exp: 1060, plinth: { tenant: "acme", access: { templates: ["a"], domains: ["d"] } } });
     const pub = await crypto.subtle.importKey("raw", Buffer.from(publicKeyBase64, "base64"), "Ed25519", false, ["verify"]);
     expect(Buffer.from(publicKeyBase64, "base64")).toHaveLength(32);
+    const withClaims = await signGrantToken({
+      privateKey, kid: "k1", tenant: "acme", issuer: "iss", subject: "sub", ttlSeconds: 60, now: 1000,
+      access: { admin: true }, claims: { limit: 5, tier: "gold" },
+    });
+    expect(dec(withClaims.split(".")[1]!).plinth).toEqual({ tenant: "acme", access: { admin: true }, claims: { limit: 5, tier: "gold" } });
     expect(await crypto.subtle.verify("Ed25519", pub, Buffer.from(s, "base64url"), new TextEncoder().encode(`${h}.${c}`))).toBe(true);
   });
 });
@@ -70,6 +75,8 @@ describe("retries (fake fetch)", () => {
     await c.execute("t", { inputs: {}, idempotencyKey: "k" });
     expect(log.slice(2).every((l) => l.url.includes("replay_on_conflict=true"))).toBe(true);
     expect(log).toHaveLength(4);
+    await c.transactions.byIdempotencyKey("k", { scope: "jwt:partner" });
+    expect(log.at(-1)!.url).toBe("http://x/v1/transactions/idempotency/k?scope=jwt%3Apartner");
   });
 
   it("does not retry creation", async () => {

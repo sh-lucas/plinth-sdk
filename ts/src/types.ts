@@ -134,7 +134,11 @@ export interface DomainBalance {
   unit: string;
   balance: number;
 }
-export type BalanceTarget = { bucket: string } | { domain: string };
+export type CompareOperator = "eq" | "ne" | "lt" | "lte" | "gt" | "gte";
+/** On a domain target, `prefix` keeps the bucket named `prefix` and those named `prefix:...`; `filter` keeps buckets whose integer attribute passes. At most 256 buckets either way. */
+export type BalanceTarget =
+  | { bucket: string }
+  | { domain: string; prefix?: string; filter?: { key: string; operator: CompareOperator; value: number } };
 export interface BalanceQueryResult {
   items: { bucket?: string; domain: string; unit: string; balance: number }[];
   consolidated: { unit: string; balance: number }[];
@@ -173,6 +177,10 @@ export interface ProposalInput {
   domains?: DomainInput[];
   templates?: TemplateInput[];
 }
+/** Result of a proposal preview. An operation that failed carries the error body and no postings; later operations do not see it. */
+export interface ProposalPreview {
+  operations: (Preview & { index: number; template: string; error?: { code: string; message: string; rejection?: string; node?: string } })[];
+}
 export type ProposalStatus = "pending" | "approved" | "rejected";
 export interface Proposal {
   id: string;
@@ -196,4 +204,6 @@ export interface GrantAccess {
   propose?: boolean;
 }
 /** `{propose: true}` alone is the proposer level: reads everything, previews and proposes, never writes. */
+/** `plinth.claims`: at most 8 keys, each an integer or an id-grammar string. Programs read them with the `claim` node. */
+export type Claims = Record<string, number | string>;
 export type Access = { admin: true } | { propose: true } | GrantAccess;

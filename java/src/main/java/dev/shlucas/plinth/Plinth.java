@@ -203,8 +203,13 @@ public final class Plinth {
             return call("GET", "/transactions/" + enc(id), null, Transaction.class, Retry.READ, null);
         }
 
-        public Transaction byIdempotencyKey(String key) {
-            return call("GET", "/transactions/idempotency/" + enc(key), null, Transaction.class, Retry.READ, null);
+        public Transaction byIdempotencyKey(String key) { return byIdempotencyKey(key, null); }
+
+        /** {@code scope} (admin only): {@code jwt:{iss}} reads a token issuer's key; null, the caller's own scope. */
+        public Transaction byIdempotencyKey(String key, String scope) {
+            Map<String, Object> q = new LinkedHashMap<>();
+            q.put("scope", scope);
+            return call("GET", withQuery("/transactions/idempotency/" + enc(key), q), null, Transaction.class, Retry.READ, null);
         }
     }
 
@@ -299,6 +304,14 @@ public final class Plinth {
         }
 
         public Proposal get(String id) { return call("GET", "/proposals/" + enc(id), null, Proposal.class, Retry.READ, null); }
+
+        /**
+         * Admin or proposer level. Apply the draft domains and templates, run the operations and roll everything back.
+         * Body: {@code {domains?, templates?, operations: [{template, context?, inputs, claims?, ...}]}} as a Map.
+         */
+        public ProposalPreview preview(Object body) {
+            return call("POST", "/proposals/preview", body, ProposalPreview.class, Retry.READ, null);
+        }
 
         public Proposal approve(String id, String memo) { return decide(id, "approve", memo); }
 

@@ -1,4 +1,4 @@
-import type { Access } from "./types.js";
+import type { Access, Claims } from "./types.js";
 
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const b64url = (bytes: Uint8Array) => b64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -25,6 +25,8 @@ export interface GrantTokenOptions {
   subject: string;
   ttlSeconds: number;
   access: Access;
+  /** Optional `plinth.claims`, read by the `claim` node. */
+  claims?: Claims;
   /** Unix seconds; defaults to now. Mainly for tests. */
   now?: number;
 }
@@ -38,7 +40,7 @@ export async function signGrantToken(o: GrantTokenOptions): Promise<string> {
     sub: o.subject,
     iat,
     exp: iat + o.ttlSeconds,
-    plinth: { tenant: o.tenant, access: o.access },
+    plinth: { tenant: o.tenant, access: o.access, ...(o.claims && { claims: o.claims }) },
   };
   const input = `${json(header)}.${json(claims)}`;
   const sig = new Uint8Array(await crypto.subtle.sign("Ed25519", o.privateKey, new TextEncoder().encode(input)));
